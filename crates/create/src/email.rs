@@ -135,6 +135,11 @@ pub fn from_email(name: &str, bytes: &[u8], page: (f64, f64), font_size: f64) ->
 pub struct EmailFacts {
     pub sent: Option<i64>,
     pub subject: Option<String>,
+    /// The From and To mailboxes as the header block shows them (`Name <address>`, joined).
+    pub from: String,
+    pub to: String,
+    /// The `Message-ID`, without its angle brackets, when the message has one.
+    pub message_id: Option<String>,
     pub attachments: Vec<(String, Vec<u8>)>,
     /// Attachments past the limit one PDF embeds, which are not in `attachments`.
     pub left_out: usize,
@@ -194,6 +199,9 @@ pub fn email_with_saved_names(
     let facts = EmailFacts {
         sent: message.date().map(|d| d.to_timestamp()),
         subject: message.subject().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string),
+        from: mailboxes(message.from()),
+        to: mailboxes(message.to()),
+        message_id: message.message_id().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string),
         attachments: files.iter().map(|f| (f.name.clone(), f.bytes.clone())).collect(),
         left_out,
     };
@@ -246,6 +254,94 @@ pub fn from_html(name: &str, bytes: &[u8], page: (f64, f64), font_size: f64) -> 
         None => name.rsplit_once('.').map_or(name, |(stem, _)| stem).to_string(),
     };
     set_title(&mut doc, &title);
+    Ok(doc)
+}
+
+/// One entry of a brief bundle's correspondence index ([`bundle_index`]).
+#[derive(Debug, Clone, Default)]
+pub struct IndexEntry {
+    pub number: usize,
+    /// When it was sent, as shown (`Tue 3 Nov 2026 09:14`), or `None` for an undated message.
+    pub when: Option<String>,
+    pub from: String,
+    pub to: String,
+    pub subject: String,
+    /// Each attachment as listed (`logs.pdf`, `site walk.mov (not printable, provided separately)`).
+    pub attachments: Vec<String>,
+    /// Where it starts in the bundle (`page 47`, `RCH-000047`).
+    pub at: String,
+    /// What a reader must know, in bold (`DUPLICATE of 7`, `UNDATED`, `COULD NOT BE READ`).
+    pub flags: Vec<String>,
+}
+
+/// A brief bundle's correspondence index: a title, a line saying how many entries and what the
+/// flags mean, then one block per entry (number, when, where it starts, From, To, Subject,
+/// Attachments, flags in bold), on pages of `page` points in Helvetica at `font_size` with
+/// three-quarter-inch margins. Characters Helvetica can't draw are written as `[U+XXXX]` with a
+/// note, never dropped: the index is part of the evidence.
+pub fn bundle_index(title: &str, summary: &str, entries: &[IndexEntry], page: (f64, f64), font_size: f64) -> Result<Document, CreateError> {
+    let (w, h) = page;
+    if !(w.is_finite() && h.is_finite() && (3.0..=MAX_SIDE).contains(&w) && (3.0..=MAX_SIDE).contains(&h)) {
+        return Err(CreateError::Invalid("invalid page size".into()));
+    }
+    let size = if font_size.is_finite() && font_size > 0.0 { font_size.clamp(4.0, 72.0) } else { 10.0 };
+    let mut escaped = 0usize;
+    let mut blocks = vec![
+        Block::Para { spans: vec![Span { face: Face::Bold, text: escape(title, &mut escaped) }], quote: 0 },
+        Block::Para { spans: vec![Span { face: Face::Oblique, text: escape(summary, &mut escaped) }], quote: 0 },
+        Block::Rule,
+        Block::Blank,
+    ];
+    if entries.is_empty() {
+        blocks.push(Block::Para { spans: vec![Span { face: Face::Oblique, text: "(no emails)".into() }], quote: 0 });
+    }
+    for e in entries {
+        let when = e.when.as_deref().unwrap_or("Undated");
+        blocks.push(Block::Para {
+            spans: vec![
+                Span { face: Face::Bold, text: format!("{}.  ", e.number) },
+                Span { face: Face::Bold, text: escape(when, &mut escaped) },
+                Span { face: Face::Regular, text: escape(&format!("   -   {}", e.at), &mut escaped) },
+            ],
+            quote: 0,
+        });
+        for (label, value) in [("From", &e.from), ("To", &e.to), ("Subject", &e.subject)] {
+            if !value.is_empty() {
+                blocks.push(Block::Para {
+                    spans: vec![
+                        Span { face: Face::Bold, text: format!("{label}: ") },
+                        Span { face: Face::Regular, text: escape(value, &mut escaped) },
+                    ],
+                    quote: 1,
+                });
+            }
+        }
+        if !e.attachments.is_empty() {
+            blocks.push(Block::Para {
+                spans: vec![
+                    Span { face: Face::Bold, text: "Attachments: ".into() },
+                    Span { face: Face::Regular, text: escape(&e.attachments.join("; "), &mut escaped) },
+                ],
+                quote: 1,
+            });
+        }
+        for flag in &e.flags {
+            blocks.push(Block::Para { spans: vec![Span { face: Face::Bold, text: escape(flag, &mut escaped) }], quote: 1 });
+        }
+        blocks.push(Block::Blank);
+    }
+    if escaped > 0 {
+        blocks.insert(2, Block::Para { spans: vec![Span { face: Face::Oblique, text: ESCAPED_NOTE.into() }], quote: 0 });
+    }
+    let mut doc = Document::new_empty();
+    let images = HashMap::new();
+    let fonts = font_resources(&mut doc);
+    let mut tree = Pages::of(&doc)?;
+    for items in layout(&blocks, &images, (w, h), size, MARGIN) {
+        write_page(&mut doc, &mut tree, &items, (w, h), size, &fonts);
+    }
+    tree.finish(&mut doc)?;
+    set_title(&mut doc, title);
     Ok(doc)
 }
 

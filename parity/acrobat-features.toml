@@ -7087,6 +7087,18 @@ evidence = ["crates/engine/src/email_export.rs::a_folder_of_emails_exports_every
 notes = "Create a PDF ▸ Export emails to PDF…: a folder (subfolders included, 16 levels, links not followed) of .eml and Outlook .msg, exported into a chosen folder on a background thread with progress and a summary. Each message is a PDF (as Create from email makes it) and each attachment its own file: PDFs kept, pictures, text, HTML and attached emails converted, Word, Excel and PowerPoint through LibreOffice when installed (Word files otherwise through macOS's own text reader, readable rather than Word's layout), anything else written as the original. Every file of a message is named YYYY-MM-DD HHMM (sent, local time) Subject - N part, the message part 0 and its attachments 1, 2… in order, so name order is sending order with attachments after their message in Finder and in byte order; a taken name is numbered as a group, never replaced. Not yet: a cancel button, threading or de-duplication"
 
 [[feature]]
+id = "create.brief-bundle"
+title = "Assemble a brief bundle from a folder of emails"
+area = "J"
+tier = "P1"
+milestone = "M10"
+status = "shipped"
+commands = ["create.bundle"]
+tools = ["email_bundle"]
+evidence = ["crates/engine/src/email_export.rs::a_folder_becomes_one_bundle_with_nothing_dropped", "crates/automation/tests/it/email_export.rs::email_bundle_index_numbers_match_the_stamped_pages", "crates/create/src/tests.rs::attachments_are_listed_at_the_end_of_the_message", "crates/ui-egui/tests/it/bundle_wizard.rs::a_dropped_folder_becomes_a_bundle_through_the_wizard", "crates/ui-egui/tests/it/bundle_wizard.rs::the_menu_opens_the_bundle_options"]
+notes = "A wizard (Create a PDF > Assemble a brief bundle..., a Home card, or a folder dropped on the window, which first offers every folder feature: bundle, export each email, combine the folder's PDFs). One PDF: a correspondence index (number, sent time, From, To, Subject, attachments, where each starts, flags), then every .eml / Outlook .msg in sent order each followed by its attachments, a bookmark per message with its attachments under it, and page or Bates numbers on every page; the index states the same numbers the pages carry. Nothing is removed: duplicates (Message-ID, else time, people, subject and attachments) are kept and flagged in the index, bookmarks and summary; undated messages go last, flagged; an attachment that can't be a page gets a page saying so and is saved beside the bundle; a message that can't be read gets a page and its file is saved too. An optional date range is the only thing that keeps messages out, and it is counted. Not yet: threading (not wanted), a cancel button, the attachments' own bookmarks (replaced by the bundle's outline)"
+
+[[feature]]
 id = "create.from-markdown"
 title = "Create PDF from Markdown"
 area = "J"
@@ -7180,7 +7192,7 @@ evidence = [
     "crates/engine/src/tests.rs::office_documents_convert_through_libreoffice_or_explain_why_not",
     "crates/engine/src/tests.rs::inline_conversions_refuse_office_documents_without_running_libreoffice",
     "crates/ui-egui/src/platform/open_worker/tests.rs::file_open_converts_an_office_document_on_the_worker",
-    "crates/ui-egui/src/platform/open_worker/tests.rs::the_open_picker_defaults_to_pdf_and_offers_images_office_text_and_all_files",
+    "crates/ui-egui/src/platform/open_worker/tests.rs::the_open_picker_defaults_to_pdf_and_offers_images_office_text_email_html_and_all_files",
 ]
 notes = "File ▸ Open (desktop) opens Word, Excel, PowerPoint, OpenDocument and RTF files (Office documents filter; PDF stays the default) as new, unsaved PDFs, converted on the open worker by an installed LibreOffice run headless in a private temporary folder with a fresh profile (macros disabled, untrusted links blocked, Writer and Calc linked content never updated) and stopped after 120 s. Found through PDFCRAFT_SOFFICE, the PATH, or the usual install folders; without it the user is told LibreOffice is needed. The automation tools that convert files (doc_create_multiple, doc_combine, batch convert) take Office documents too. Not yet: Insert pages, Combine files and Create ▸ Multiple files in the app refuse Office documents (they convert on the frame thread) and point to File ▸ Open; no Create ▸ From Office command or conversion settings; Visio and Publisher; the web build; layout fidelity is LibreOffice's, not measured against Acrobat; Impress has no link-update setting and the process's network access isn't sandboxed (synthetic linked sections, pictures and cell references made no connection with LibreOffice 26.8.1); the real-conversion tests skip where LibreOffice isn't installed, CI included."
 

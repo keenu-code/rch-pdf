@@ -57,6 +57,7 @@ impl Automation {
             "doc_open" => self.doc_open(&a)?,
             "doc_batch" => self.doc_batch(&a)?,
             "email_export" => self.email_export(&a)?,
+            "email_bundle" => self.email_bundle(&a)?,
             "doc_list" => json!({ "documents": self.session.docs().iter().map(summary).collect::<Vec<_>>() }),
             "doc_info" => {
                 let id = self.doc(&a)?.id;

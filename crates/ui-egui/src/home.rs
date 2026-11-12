@@ -111,6 +111,32 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     });
                 ui.add_space(22.0);
             }
+            // The folder wizard, one click from Home (dropping a folder anywhere opens it too).
+            egui::Frame::NONE
+                .fill(t.card)
+                .stroke(Stroke::new(1.0, t.border))
+                .corner_radius(CornerRadius::same(12))
+                .inner_margin(egui::Margin::same(14))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new(tl!("Assemble a brief bundle")).font(theme::semibold(15.0)));
+                            ui.label(
+                                egui::RichText::new(tl!(
+                                    "A folder of emails into one PDF: an index, every email in date order with its attachments, bookmarked and numbered. Or drop a folder anywhere on this window."
+                                ))
+                                .color(t.text_muted),
+                            );
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if widgets::pill_button(ui, tl!("Start a bundle"), true).clicked() {
+                                app.open_bundle_wizard();
+                            }
+                        });
+                    });
+                });
+            ui.add_space(22.0);
 
             egui::Frame::NONE
                 .fill(t.card)

@@ -28,6 +28,7 @@ pub use copy_image::{PagePicture, picture_at};
 pub mod dates;
 mod document;
 mod edit;
+mod email_bundle;
 mod email_export;
 mod error;
 pub mod export;
@@ -159,6 +160,7 @@ use document::page_runs;
 pub use document::{Document, EditNotice, TextNotice, display_bytes_for, render_password_for};
 use document::{carry_verdict_marks, display_bytes, info_fields, recovered_render_password, same_pages, shown_under_redactions, undrawn_notices};
 pub use edit::{BATCH_LABELS, EDIT_LABELS, Edit};
+pub use email_bundle::{BundleOptions, BundleReport, Numbering};
 #[cfg(not(target_arch = "wasm32"))]
 pub use email_export::email_files;
 pub use email_export::{EmailExport, ExportFile, ExportKind, FolderExport, MAX_EMAIL_BYTES, dated_stem};

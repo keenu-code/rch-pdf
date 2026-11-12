@@ -96,3 +96,55 @@ fn email_export_refuses_what_it_cannot_do() {
     assert!(a.call("email_export", &json!({ "paths": ["empty"], "out_dir": "../escape" })).is_err());
     assert!(!dir.path().join("../escape").exists());
 }
+
+/// B2 + B5: what the index says each message starts at is the Bates number stamped on the page
+/// its bookmark opens, for every message, and the numbers run on every page without a gap.
+#[test]
+fn email_bundle_index_numbers_match_the_stamped_pages() {
+    let dir = tempfile::tempdir().unwrap();
+    let mail = dir.path().join("mail");
+    std::fs::create_dir_all(&mail).unwrap();
+    for (i, day) in [3, 4, 5, 6, 9].iter().enumerate() {
+        let attachment = (i % 2 == 0).then_some(("note.txt", "Attached note.\u{000C}Second page of the note."));
+        std::fs::write(mail.join(format!("m{i}.eml")), eml(&format!("Item {i}"), &format!("Tue, {day} Nov 2026 10:00:00 +0000"), attachment))
+            .unwrap();
+    }
+    std::fs::write(
+        mail.join("m0 again.eml"),
+        eml("Item 0", "Tue, 3 Nov 2026 10:00:00 +0000", Some(("note.txt", "Attached note.\u{000C}Second page of the note."))),
+    )
+    .unwrap();
+    let mut a = auto(dir.path());
+    let made =
+        ok(&mut a, "email_bundle", json!({ "paths": ["mail"], "out_dir": "out", "title": "Test matter", "numbering": "bates", "prefix": "TM-" }));
+    assert_eq!(made["emails"], 6);
+    assert_eq!(made["duplicates"].as_array().unwrap().len(), 1, "{made}");
+    let pages = made["pages"].as_u64().unwrap() as usize;
+    let doc = ok(&mut a, "doc_open", json!({ "path": made["bundle"].as_str().unwrap() }))["doc"].as_u64().unwrap();
+    let text: Vec<String> = ok(&mut a, "text_extract", json!({ "doc": doc }))["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["text"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(text.len(), pages);
+    // B5: every page carries its own Bates number, in sequence from TM-000001.
+    for (i, t) in text.iter().enumerate() {
+        assert!(t.contains(&format!("TM-{:06}", i + 1)), "page {}: {t}", i + 1);
+    }
+    // B2: each index entry's "- TM-nnnnnn" is the (1-based) page its bookmark opens.
+    let marks = ok(&mut a, "bookmark_list", json!({ "doc": doc }))["bookmarks"].as_array().unwrap().clone();
+    assert_eq!(marks.len(), 7, "index + 6 messages");
+    assert_eq!(marks[0]["title"], "Correspondence index");
+    let first = marks[1]["page"].as_u64().unwrap() as usize;
+    let index_text = text[..first - 1].join("\n");
+    for m in marks.iter().skip(1) {
+        let title = m["title"].as_str().unwrap();
+        let number = title.split('.').next().unwrap();
+        let page = m["page"].as_u64().unwrap() as usize;
+        let entry_line = index_text.lines().find(|l| l.trim_start().starts_with(&format!("{number}. "))).unwrap_or_default();
+        assert!(entry_line.trim_end().ends_with(&format!("TM-{page:06}")), "{title}: index line {entry_line:?}, bookmark page {page}");
+        assert!(text[page - 1].contains("Subject:") && text[page - 1].contains(&format!("TM-{page:06}")), "{title} opens on its message");
+    }
+    assert!(index_text.contains("DUPLICATE of 1") && index_text.contains("ALSO APPEARS as 2"), "{index_text}");
+}

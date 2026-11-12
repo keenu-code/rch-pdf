@@ -25,6 +25,7 @@ mod attachment_row;
 mod bookmark_position;
 mod bookmarks;
 mod bulk_fields;
+mod bundle_wizard;
 mod buttons;
 mod camera;
 mod column_select;

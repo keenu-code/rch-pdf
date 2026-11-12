@@ -70,7 +70,7 @@ impl Session {
         let mut parts = Vec::with_capacity(attachments.len());
         for (i, (attachment, data)) in attachments.into_iter().enumerate() {
             let (bytes, kind, ext) = self.attachment_output(&attachment, data);
-            let label = clean(file_stem(&attachment).unwrap_or("attachment"), MAX_ATTACHMENT);
+            let label = clean_name(file_stem(&attachment).unwrap_or("attachment"), MAX_ATTACHMENT);
             let label = if label.is_empty() { "attachment".to_string() } else { label };
             parts.push(ExportFile { part: format!("{:0width$} {label}.{ext}", i + 1), bytes, kind });
         }
@@ -82,10 +82,10 @@ impl Session {
     }
 
     /// An attachment as the export writes it: its bytes, how, and the file extension.
-    fn attachment_output(&self, name: &str, data: Vec<u8>) -> (Arc<Vec<u8>>, ExportKind, String) {
+    pub(crate) fn attachment_output(&self, name: &str, data: Vec<u8>) -> (Arc<Vec<u8>>, ExportKind, String) {
         let data = Arc::new(data);
         let original = |reason: Option<String>| {
-            let ext = name.rsplit_once('.').map(|(_, e)| clean(e, 16)).filter(|e| !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric()));
+            let ext = name.rsplit_once('.').map(|(_, e)| clean_name(e, 16)).filter(|e| !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric()));
             (Arc::clone(&data), ExportKind::Original { reason }, ext.unwrap_or_else(|| "bin".into()))
         };
         let converted = match pdfcraft_create::source_kind(name, &data) {
@@ -115,7 +115,7 @@ fn word_fallback(_session: &Session, _name: &str, _data: &[u8]) -> Option<Arc<Ve
 
 /// This computer's offset from UTC, in seconds, at the instant `secs` (so a summer message is
 /// named in summer time).
-fn local_offset_at(secs: i64) -> i64 {
+pub(crate) fn local_offset_at(secs: i64) -> i64 {
     #[cfg(not(target_arch = "wasm32"))]
     {
         use chrono::TimeZone;
@@ -132,7 +132,7 @@ fn local_offset_at(secs: i64) -> i64 {
 /// apply), `undated <subject>` without a time; the subject cleaned for a file name and cut to
 /// [`MAX_SUBJECT`] characters, `(no subject)` when there is none.
 pub fn dated_stem(sent: Option<(i64, i64)>, subject: Option<&str>) -> String {
-    let subject = subject.map(|s| clean(s, MAX_SUBJECT)).filter(|s| !s.is_empty()).unwrap_or_else(|| "(no subject)".into());
+    let subject = subject.map(|s| clean_name(s, MAX_SUBJECT)).filter(|s| !s.is_empty()).unwrap_or_else(|| "(no subject)".into());
     let when = sent
         .and_then(|(secs, offset)| chrono::DateTime::from_timestamp(secs.checked_add(offset)?, 0))
         .map_or_else(|| "undated".to_string(), |t| t.format("%Y-%m-%d %H%M").to_string());
@@ -142,7 +142,7 @@ pub fn dated_stem(sent: Option<(i64, i64)>, subject: Option<&str>) -> String {
 /// `s` made safe as part of a file name: the characters no file system takes (`/ \ : * ? " < > |`)
 /// and control characters dropped, whitespace runs collapsed, leading and trailing dots and
 /// spaces trimmed, cut to at most `max` bytes at a character boundary.
-fn clean(s: &str, max: usize) -> String {
+pub(crate) fn clean_name(s: &str, max: usize) -> String {
     let kept: String = s.chars().map(|c| if c.is_control() || "/\\:*?\"<>|".contains(c) { ' ' } else { c }).collect();
     let words: Vec<&str> = kept.split_whitespace().collect();
     let mut joined = String::new();
@@ -272,7 +272,7 @@ impl Session {
 /// `dir/name`, or `dir/name (2)`… when a file has it; `None` if `name` would leave `dir` or
 /// no number up to 10 000 is free.
 #[cfg(not(target_arch = "wasm32"))]
-fn unused_path(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn unused_path(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
     // Names come from `clean`, but the folder is the user's: check, never assume.
     if name.is_empty() || name.contains(['/', '\\']) || name.starts_with('.') {
         return None;
@@ -292,6 +292,80 @@ fn unused_path(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// B1/B3/B4: a messy folder becomes one bundle with every message exactly once, in order,
+    /// each with its attachments under it; duplicates and undated flagged, nothing dropped; the
+    /// optional date range is the only thing that keeps a message out.
+    #[test]
+    fn a_folder_becomes_one_bundle_with_nothing_dropped() {
+        use crate::email_bundle::{BundleOptions, Numbering};
+        let src = temp_dir("bundle-src");
+        let out = temp_dir("bundle-out");
+        let base = 1_790_000_000i64;
+        let day = 86_400i64;
+        std::fs::write(src.join("a.eml"), eml("First", Some(base), &[("notes.txt", b"kea notes".as_slice())])).unwrap();
+        std::fs::write(src.join("b.msg"), msg("Second", Some(base + day), &[("clip.mov", b"\x00\x00\x00\x18ftypqt  ".as_slice())])).unwrap();
+        // The same message saved twice, under two names: kept twice, flagged.
+        let third = eml("Third", Some(base + 2 * day), &[]);
+        std::fs::write(src.join("c.eml"), &third).unwrap();
+        std::fs::write(src.join("c copy.eml"), &third).unwrap();
+        std::fs::write(src.join("d.eml"), eml("No date", None, &[])).unwrap();
+        std::fs::write(src.join("e.msg"), b"not an Outlook message").unwrap();
+        std::fs::write(src.join("f.eml"), eml("Much later", Some(base + 40 * day), &[])).unwrap();
+        let files = email_files(&src);
+        assert_eq!(files.len(), 7);
+        let session = Session::new();
+        let options = |from, to| BundleOptions {
+            title: "Smith v Jones".into(),
+            from,
+            to,
+            index: true,
+            numbering: Numbering::Bates { prefix: "RCH-".into(), start: 1, digits: 6 },
+        };
+        let mut write = |p: &std::path::Path, b: &[u8]| std::fs::write(p, b);
+        let report = session.assemble_bundle(&files, &options(None, None), &out, &mut write, &mut |_, _| {}).unwrap();
+        assert_eq!(report.emails, 7, "every file is in the bundle, the unreadable one included");
+        assert_eq!(report.duplicates.len(), 1);
+        assert_eq!(report.undated, 1);
+        assert_eq!(report.unreadable.len(), 1);
+        assert_eq!(report.not_printable.len(), 1, "{:?}", report.not_printable);
+        assert_eq!(report.outside_range, 0);
+        let bundle = report.bundle.clone().unwrap();
+        assert!(bundle.ends_with("Smith v Jones - Brief bundle.pdf"));
+        // The video and the unreadable file are saved beside the bundle, not lost.
+        let side = out.join("Smith v Jones - not printable");
+        let saved: Vec<String> = std::fs::read_dir(&side).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        assert!(saved.iter().any(|n| n.ends_with("clip.mov")) && saved.iter().any(|n| n.ends_with("e.msg")), "{saved:?}");
+
+        let mut s = Session::new();
+        let id = s.open("bundle.pdf", None, std::sync::Arc::new(std::fs::read(&bundle).unwrap()), None).unwrap();
+        assert_eq!(s.get(id).unwrap().info.pages.len(), report.pages);
+        let tree = s.outline_tree(id, &[]).unwrap().unwrap().nodes;
+        let titles: Vec<&str> = tree.iter().map(|n| n.title.as_str()).collect();
+        assert_eq!(titles.len(), 8, "the index and one bookmark per message: {titles:?}");
+        assert_eq!(titles[0], "Correspondence index");
+        assert!(titles[1].starts_with("1. ") && titles[1].ends_with(" - First"));
+        assert!(titles[2].ends_with(" - Second") && tree[2].children.len() == 1 && tree[2].children[0].title.contains("clip.mov"));
+        assert!(titles[3].ends_with(" - Third") && titles[4].ends_with(" - Third (DUPLICATE)"));
+        assert!(titles[5].ends_with(" - Much later"));
+        assert!(titles[6].starts_with("6. Undated - No date"));
+        assert!(titles[7].starts_with("7. Could not be read: e.msg"));
+        assert_eq!(tree[1].children.len(), 1, "notes.txt under its message");
+        // Every bookmark points inside the bundle, in order.
+        let pages: Vec<usize> = tree.iter().map(|n| n.page.unwrap()).collect();
+        assert!(pages.windows(2).all(|w| w[0] < w[1]) && *pages.last().unwrap() < report.pages, "{pages:?}");
+
+        // B4: a date range keeps out only what it says; undated and unreadable stay in.
+        let out2 = temp_dir("bundle-out2");
+        let from = chrono::DateTime::from_timestamp(base + day + local_offset_at(base + day), 0).unwrap().date_naive();
+        let to = chrono::DateTime::from_timestamp(base + 2 * day + local_offset_at(base + 2 * day), 0).unwrap().date_naive();
+        let ranged = session.assemble_bundle(&files, &options(Some(from), Some(to)), &out2, &mut write, &mut |_, _| {}).unwrap();
+        assert_eq!(ranged.outside_range, 2, "First and Much later");
+        assert_eq!(ranged.emails, 5, "Second, Third twice, undated, unreadable");
+        for dir in [&src, &out, &out2] {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
 
     #[test]
     fn names_start_with_the_local_sent_time_and_are_safe() {

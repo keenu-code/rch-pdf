@@ -9,7 +9,7 @@ mod extract;
 mod msg;
 mod text_font;
 mod upright_image;
-pub use email::{EmailFacts, email_with_facts, email_with_saved_names, from_email, from_html};
+pub use email::{EmailFacts, IndexEntry, bundle_index, email_with_facts, email_with_saved_names, from_email, from_html};
 pub use extract::{ExtractedImage, ImageExport, extract_images, image_file, image_file_within};
 pub use msg::{is_msg, msg_to_eml};
 mod office;

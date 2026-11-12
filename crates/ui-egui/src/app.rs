@@ -338,6 +338,7 @@ impl PdfCraftApp {
             export_draft: Default::default(),
             export_status: None,
             email_export_status: None,
+            bundle_wizard: None,
             signature: None,
             initials: None,
             signature_draft: Default::default(),
@@ -922,6 +923,7 @@ impl PdfCraftApp {
         self.process_pending_edits();
         palette::show(self, &ctx);
         dialogs::show(self, &ctx);
+        workflows::bundle_wizard_ui::show(self, &ctx);
         self.show_progress(&ctx);
         widgets::toast(self, &ctx);
         self.finish_render_frame(&ctx);

@@ -19,6 +19,8 @@ use crate::theme::ThemePreference;
 use crate::{PdfCraftApp, RightPanel};
 
 pub(super) mod tab_context;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use tab_context::reveal;
 
 /// The app's name in the menus the layouts write (About, Hide, Quit).
 pub(crate) const APP_NAME: &str = "PdfCraft";
@@ -129,7 +131,8 @@ const FILE: &[&str] = &[
     SEP,
     "print.dialog",
 ];
-const CREATE: &[&str] = &["create.file", "create.multiple", "create.multiple_separate", "create.emails", "create.images", "create.clipboard"];
+const CREATE: &[&str] =
+    &["create.file", "create.multiple", "create.multiple_separate", "create.emails", "create.bundle", "create.images", "create.clipboard"];
 const EXPORT: &[&str] = &["export.docx", "export.pptx", "export.rtf", "export.html", "export.text", SEP, "export.image", "export.all_images"];
 const PROTECT: &[&str] = &["protect.password", "protect.remove", "protect.unlock", SEP, "protect.properties"];
 const EDIT: &[&str] = &[
