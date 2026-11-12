@@ -34,6 +34,13 @@ fn the_menu_opens_the_bundle_options() {
     h.run_steps(2);
     h.get_by_label("Assemble bundle");
     h.get_by_label("Correspondence index at the front");
+    // Centred in the window: as much room above the wizard as below it (it once re-measured
+    // every frame and hung from the middle of the window).
+    h.run_steps(6);
+    let top = h.query_by_label_contains("Every email in the folder, in the order sent").unwrap().rect().top();
+    let bottom = h.get_by_label("Assemble bundle").rect().bottom();
+    let (above, below) = (top, 900.0 - bottom);
+    assert!((above - below).abs() < 80.0, "wizard spans {top}..{bottom} in a 900 pt window: {above} above, {below} below");
     assert!(h.query_all_by_label("No folder chosen").count() >= 1);
     h.get_by_label("Cancel").click();
     h.run_steps(2);

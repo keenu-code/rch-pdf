@@ -27,6 +27,9 @@ type Status = std::sync::Arc<std::sync::Mutex<(usize, usize, Option<Result<pdfcr
 #[derive(Debug)]
 pub(crate) struct BundleWizard {
     pub step: Step,
+    /// The page the window last measured itself for: it re-measures only when the page changes,
+    /// so it stays centred (re-measuring every frame centres it on no height at all).
+    measured: Option<Step>,
     pub source: Option<std::path::PathBuf>,
     /// Emails and PDFs found in `source` (for the first page).
     pub found: (usize, usize),
@@ -51,6 +54,7 @@ impl BundleWizard {
     fn new(source: Option<std::path::PathBuf>, step: Step) -> Self {
         let mut w = Self {
             step,
+            measured: None,
             source: None,
             found: (0, 0),
             title: String::new(),
@@ -188,11 +192,14 @@ impl PdfCraftApp {
 
 /// Draw the wizard, if it is open (each frame).
 pub(crate) fn show(app: &mut PdfCraftApp, ctx: &egui::Context) {
-    let Some(step) = app.bundle_wizard.as_ref().map(|w| w.step.clone()) else { return };
     #[cfg(not(target_arch = "wasm32"))]
     poll(app);
+    let Some(w) = app.bundle_wizard.as_mut() else { return };
+    let step = w.step.clone();
+    let remeasure = w.measured.as_ref() != Some(&step);
+    w.measured = Some(step.clone());
     let mut close = false;
-    let response = crate::widgets::show_modal_sized(ctx, "brief_bundle_wizard", true, |ui| {
+    let response = crate::widgets::show_modal_sized(ctx, "brief_bundle_wizard", remeasure, |ui| {
         ui.set_width(520.0);
         match step {
             Step::Choose => choose_page(app, ui, &mut close),
