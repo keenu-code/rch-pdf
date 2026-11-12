@@ -654,13 +654,13 @@ fn card_general(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, ctx: &mut 
     ui.add_space(6.0);
 
     #[cfg(not(target_arch = "wasm32"))]
-    ctx.checkbox(ui, &mut app.reopen_last_session, tl!("Reopen the files that were open when PdfCraft last closed"), t);
+    ctx.checkbox(ui, &mut app.reopen_last_session, tl!("Reopen the files that were open when RCH PDF last closed"), t);
     #[cfg(not(target_arch = "wasm32"))]
     ctx.checkbox(ui, &mut app.restore_last_view, tl!("Restore the last view (page, zoom and page display) when a document is opened again"), t);
     #[cfg(not(target_arch = "wasm32"))]
     ctx.checkbox(ui, &mut app.reload_changed_files, tl!("Reload documents when their files change on disk"), t);
     #[cfg(not(target_arch = "wasm32"))]
-    ctx.checkbox(ui, &mut app.update_check_at_start, tl!("Check for updates when PdfCraft starts"), t);
+    ctx.checkbox(ui, &mut app.update_check_at_start, tl!("Check for updates when RCH PDF starts"), t);
     ctx.checkbox(ui, &mut app.show_secured_notice, tl!("Show a notice when a document is secured"), t);
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -825,7 +825,7 @@ fn card_documents_and_view(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens,
         apply_view_pref_changes(&mut app.views[i], &defaults, ViewPrefChanges { always_reset: false, ..changes });
     }
     ctx.checkbox(ui, &mut app.text_links, tl!("Open web and email addresses written in the page text"), t);
-    ctx.label_secondary(ui, tl!("Only web (http, https) and email addresses open, and PdfCraft asks first, as for other links."), t);
+    ctx.label_secondary(ui, tl!("Only web (http, https) and email addresses open, and RCH PDF asks first, as for other links."), t);
     ui.add_space(6.0);
 
     ui.horizontal(|ui| {

@@ -202,7 +202,7 @@ impl PdfCraftApp {
                 }
                 Prompt::Text { title, question, password, label, .. } => {
                     if *password {
-                        ui.label(tl!("This request comes from the document, not PdfCraft. Only enter a password if you trust this document."));
+                        ui.label(tl!("This request comes from the document, not RCH PDF. Only enter a password if you trust this document."));
                     }
                     if !title.is_empty() {
                         ui.label(title);

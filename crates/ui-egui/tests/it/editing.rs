@@ -859,7 +859,7 @@ impl Drop for TempPdfs {
     }
 }
 
-/// The app with Preferences ▸ Reopen the files that were open when PdfCraft last closed on.
+/// The app with Preferences ▸ Reopen the files that were open when RCH PDF last closed on.
 fn session_harness(setup: impl FnOnce(&mut PdfCraftApp) + 'static) -> Harness<'static, PdfCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();

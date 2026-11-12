@@ -20,7 +20,7 @@ fn harness(setup: impl FnOnce(&mut PdfCraftApp) + 'static) -> Harness<'static, P
 #[test]
 fn home_and_title_bar_have_no_community_card_or_discord_button() {
     let h = harness(|_| {});
-    assert!(h.query_by_label("Welcome to PdfCraft").is_some(), "the home screen is showing");
+    assert!(h.query_by_label("Welcome to RCH PDF").is_some(), "the home screen is showing");
     assert!(h.query_by_label("Join the ArtCraft community").is_none());
     assert!(h.query_by_label("Join our Discord").is_none());
     assert!(h.query_by_label("Discord").is_none());

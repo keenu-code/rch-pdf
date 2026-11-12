@@ -24,13 +24,13 @@ from PIL import Image, ImageCms
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Keep in sync with package.sh (volume name) and README.md (layout).
-VOLUME = "PdfCraft"
+VOLUME = "RCH PDF"
 WIDTH, HEIGHT = 660, 400  # window content, pt; the background's 1x size
 TITLE_BAR = 32
 ICON_SIZE = 128
 PALETTE = 16  # colours in background.tiff
 # RCH build: LibreOffice ships beside PdfCraft, both dragged to Applications.
-ICONS = {"PdfCraft.app": (170, 140), "LibreOffice.app": (170, 300), "Applications": (500, 220)}
+ICONS = {"RCH PDF.app": (170, 140), "LibreOffice.app": (170, 300), "Applications": (500, 220)}
 # A fixed date for the alias and the colour profile. Finder never matches it against the image
 # (each build is a new volume): it finds the background by volume name and path.
 FIXED_DATE = datetime.datetime(2026, 10, 8, tzinfo=datetime.timezone.utc)

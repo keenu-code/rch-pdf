@@ -39,7 +39,8 @@ export MACOSX_DEPLOYMENT_TARGET=11.0
 IDENTITY="${MACOS_SIGN_IDENTITY:--}"
 SHORT_VERSION="${VERSION%%-*}"
 WORK="$CARGO_TARGET_DIR/macos-package"
-APP="$WORK/PdfCraft.app"
+# RCH build: the app is "RCH PDF" in Finder and the Dock; its executable keeps its own name.
+APP="$WORK/RCH PDF.app"
 DMG="$DIST/pdfcraft-$VERSION-macos-$ARCH.dmg"
 CLI_ZIP="$DIST/pdfcraft-cli-$VERSION-macos-$ARCH.zip"
 
@@ -151,7 +152,7 @@ fi
 echo "==> building $DMG"
 STAGE="$WORK/dmg"
 mkdir -p "$STAGE"
-ditto "$APP" "$STAGE/PdfCraft.app"
+ditto "$APP" "$STAGE/RCH PDF.app"
 # RCH build: another signed, notarised app shipped beside PdfCraft (LibreOffice, for Office
 # attachments), copied as it is. Its own signature must hold before and after it goes in.
 if [[ -n "${PDFCRAFT_DMG_EXTRA_APP:-}" ]]; then
@@ -185,7 +186,7 @@ hdiutil_retry() {
     sleep $((attempt * 10))
   done
 }
-hdiutil_retry create create -srcfolder "$STAGE" -volname "PdfCraft" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG"
+hdiutil_retry create create -srcfolder "$STAGE" -volname "RCH PDF" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG"
 sign "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
 # The app inside the image must still pass --strict, so a makehybrid-style regression can't ship.
@@ -194,7 +195,7 @@ rm -rf "$MOUNT"
 mkdir -p "$MOUNT"
 hdiutil_retry attach attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
 EXTRA_IN_DMG="${PDFCRAFT_DMG_EXTRA_APP:+$MOUNT/$(basename "${PDFCRAFT_DMG_EXTRA_APP:-}")}"
-if ! codesign --verify --strict --deep --verbose=2 "$MOUNT/PdfCraft.app" || { [[ -n "$EXTRA_IN_DMG" ]] && ! codesign --verify --strict --deep --verbose=2 "$EXTRA_IN_DMG"; }; then
+if ! codesign --verify --strict --deep --verbose=2 "$MOUNT/RCH PDF.app" || { [[ -n "$EXTRA_IN_DMG" ]] && ! codesign --verify --strict --deep --verbose=2 "$EXTRA_IN_DMG"; }; then
   hdiutil_retry detach detach "$MOUNT" >/dev/null || true
   exit 1
 fi
