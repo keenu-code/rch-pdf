@@ -4063,3 +4063,40 @@ fn outlook_message_edge_cases() {
     let eml = msg_to_eml("l.msg", &msg_bytes(&latin)).unwrap();
     assert!(mail_parser::MessageParser::default().parse(eml.as_slice()).unwrap().body_html(0).unwrap().contains("café"));
 }
+
+/// The attachments are listed again at the end of the message, one `ATTACHMENT:` line each, so
+/// a file no page can show (a video) is still on the record; given the names an export saved
+/// them as, each line says which file holds it.
+#[test]
+fn attachments_are_listed_at_the_end_of_the_message() {
+    let video = b64(&[0u8; 3000]);
+    let eml = format!(
+        "From: a@example.com\r\nSubject: Site visit\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"B\"\r\n\r\n\
+         --B\r\nContent-Type: text/plain\r\n\r\nFootage attached.\r\n\
+         --B\r\nContent-Type: video/quicktime; name=\"site walk.mov\"\r\nContent-Disposition: attachment; filename=\"site walk.mov\"\r\nContent-Transfer-Encoding: base64\r\n\r\n{video}\r\n\
+         --B\r\nContent-Type: application/pdf; name=\"plan.pdf\"\r\nContent-Disposition: attachment; filename=\"plan.pdf\"\r\nContent-Transfer-Encoding: base64\r\n\r\n{}\r\n--B--\r\n",
+        b64(LOGS_PDF)
+    );
+    let last_page = |doc: &Document| {
+        let doc = reopen(doc);
+        let p = pages(&doc);
+        content_bytes(&doc, p.last().unwrap())
+    };
+    let (doc, facts) = email_with_facts("v.eml", eml.as_bytes(), LETTER, 10.0).unwrap();
+    let c = last_page(&doc);
+    let text = String::from_utf8_lossy(&c).into_owned();
+    assert!(shows(&c, "ATTACHMENT: ") && shows(&c, "site walk.mov (3 KB)") && shows(&c, "plan.pdf (32 B)"), "{text}");
+    assert!(text.find("Footage attached.").unwrap() < text.rfind("ATTACHMENT: ").unwrap(), "listed after the body: {text}");
+    assert!(!shows(&c, "saved as"));
+    assert_eq!(facts.attachments.len(), 2);
+
+    let saved = ["2026-11-03 0914 Site visit - 1 site walk.mov".to_string(), String::new()];
+    let (doc, _) = email_with_saved_names("v.eml", eml.as_bytes(), LETTER, 10.0, &saved).unwrap();
+    let c = last_page(&doc);
+    assert!(shows(&c, " - saved as \"2026-11-03 0914 Site visit - 1 site walk.mov\""), "{}", String::from_utf8_lossy(&c));
+    assert_eq!(String::from_utf8_lossy(&c).matches("saved as").count(), 1, "an empty name says nothing");
+
+    // A message without attachments gets no list.
+    let plain = reopen(&from_email("p.eml", b"From: a@example.com\r\nSubject: s\r\n\r\nHi.\r\n", LETTER, 10.0).unwrap());
+    assert!(!shows(&content_bytes(&plain, &pages(&plain)[0]), "ATTACHMENT: "));
+}

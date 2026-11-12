@@ -72,6 +72,11 @@ fn email_export_writes_dated_pdfs_and_separate_attachments() {
     let again = ok(&mut a, "email_export", json!({ "paths": ["mail/b.eml"], "out_dir": "out" }));
     let written: Vec<&str> = again["written"].as_array().unwrap().iter().map(|p| p.as_str().unwrap()).collect();
     assert!(written[0].ends_with(" RE Second (2) - 0 Email.pdf") && written[1].ends_with(" RE Second (2) - 1 minutes.pdf"), "{written:?}");
+    // The email's own list names the attachment file as written, numbered group included.
+    let doc = ok(&mut a, "doc_open", json!({ "path": written[0] }))["doc"].as_u64().unwrap();
+    let text = ok(&mut a, "text_extract", json!({ "doc": doc }))["pages"][0]["text"].as_str().unwrap().to_string();
+    let minutes = std::path::Path::new(written[1]).file_name().unwrap().to_string_lossy().into_owned();
+    assert!(text.contains("ATTACHMENT:") && text.contains(&format!("saved as \"{minutes}\"")), "{text}");
     assert_eq!(std::fs::read_dir(dir.path().join("out")).unwrap().count(), 5);
 }
 

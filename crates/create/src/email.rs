@@ -142,6 +142,19 @@ pub struct EmailFacts {
 
 /// [`from_email`], with the message's [`EmailFacts`].
 pub fn email_with_facts(name: &str, bytes: &[u8], page: (f64, f64), font_size: f64) -> Result<(Document, EmailFacts), CreateError> {
+    email_with_saved_names(name, bytes, page, font_size, &[])
+}
+
+/// [`email_with_facts`], where the attachment list at the end of the message also says the
+/// file each attachment was saved as (`saved_as[i]` for the `i`th of [`EmailFacts::attachments`];
+/// an empty or missing entry says nothing).
+pub fn email_with_saved_names(
+    name: &str,
+    bytes: &[u8],
+    page: (f64, f64),
+    font_size: f64,
+    saved_as: &[String],
+) -> Result<(Document, EmailFacts), CreateError> {
     let (w, h) = page;
     if !(w.is_finite() && h.is_finite() && (3.0..=MAX_SIDE).contains(&w) && (3.0..=MAX_SIDE).contains(&h)) {
         return Err(CreateError::Invalid("invalid page size".into()));
@@ -170,6 +183,7 @@ pub fn email_with_facts(name: &str, bytes: &[u8], page: (f64, f64), font_size: f
         blocks.push(Block::Blank);
     }
     blocks.append(&mut body);
+    blocks.extend(attachment_list(&files, left_out, saved_as, &mut escaped));
 
     let fonts = font_resources(&mut doc);
     let mut tree = Pages::of(&doc)?;
@@ -487,6 +501,33 @@ fn header_blocks(m: &Message, files: &[Attachment], left_out: usize, escaped: &m
         .collect();
     out.push(Block::Rule);
     out.push(Block::Blank);
+    out
+}
+
+/// The attachments again at the end of the message, one line each, as a printed email lists
+/// them: so the PDF says what came with the message (a video or an archive included, which no
+/// page can show) wherever a reader stops, and, from an email export, which file holds each.
+fn attachment_list(files: &[Attachment], left_out: usize, saved_as: &[String], escaped: &mut usize) -> Vec<Block> {
+    if files.is_empty() && left_out == 0 {
+        return Vec::new();
+    }
+    let mut out = vec![Block::Blank, Block::Rule, Block::Blank];
+    for (i, f) in files.iter().enumerate() {
+        let mut spans = vec![
+            Span { face: Face::Bold, text: "ATTACHMENT: ".into() },
+            Span { face: Face::Regular, text: escape(&format!("{} ({})", f.name, human_size(f.bytes.len())), escaped) },
+        ];
+        if let Some(saved) = saved_as.get(i).filter(|s| !s.is_empty()) {
+            spans.push(Span { face: Face::Oblique, text: escape(&format!(" - saved as \"{saved}\""), escaped) });
+        }
+        out.push(Block::Para { spans, quote: 0 });
+    }
+    if left_out > 0 {
+        out.push(Block::Para {
+            spans: vec![Span { face: Face::Oblique, text: format!("(and {left_out} more attachments, not embedded)") }],
+            quote: 0,
+        });
+    }
     out
 }
 

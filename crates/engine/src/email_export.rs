@@ -56,18 +56,28 @@ impl Session {
     /// writes: the email as a PDF on the session's paper, then each attachment, in the order the
     /// message lists them. Times are local to this computer ([`dated_stem`]).
     pub fn export_email(&self, name: &str, bytes: &[u8]) -> Result<EmailExport, EditError> {
-        let (doc, facts) = pdfcraft_create::email_with_facts(name, bytes, self.paper(), 10.0)?;
-        let pdf = self.write_new(&doc)?;
+        self.export_email_as(name, bytes, &mut |stem| stem.to_string())
+    }
+
+    /// [`Self::export_email`] with the stem the files get chosen by `choose` (given the dated
+    /// stem; a folder export numbers it when it is taken). The attachments are converted first
+    /// and the email's PDF drawn last, so the list at its end names the files as written.
+    pub fn export_email_as(&self, name: &str, bytes: &[u8], choose: &mut dyn FnMut(&str) -> String) -> Result<EmailExport, EditError> {
+        let (_, facts) = pdfcraft_create::email_with_facts(name, bytes, self.paper(), 10.0)?;
         let EmailFacts { sent, subject, attachments, .. } = facts;
-        let stem = dated_stem(sent.map(|s| (s, local_offset_at(s))), subject.as_deref().or_else(|| file_stem(name)));
+        let stem = choose(&dated_stem(sent.map(|s| (s, local_offset_at(s))), subject.as_deref().or_else(|| file_stem(name))));
         let width = attachments.len().to_string().len();
-        let mut files = vec![ExportFile { part: format!("{:0width$} Email.pdf", 0), bytes: pdf, kind: ExportKind::Email }];
+        let mut parts = Vec::with_capacity(attachments.len());
         for (i, (attachment, data)) in attachments.into_iter().enumerate() {
             let (bytes, kind, ext) = self.attachment_output(&attachment, data);
             let label = clean(file_stem(&attachment).unwrap_or("attachment"), MAX_ATTACHMENT);
             let label = if label.is_empty() { "attachment".to_string() } else { label };
-            files.push(ExportFile { part: format!("{:0width$} {label}.{ext}", i + 1), bytes, kind });
+            parts.push(ExportFile { part: format!("{:0width$} {label}.{ext}", i + 1), bytes, kind });
         }
+        let saved: Vec<String> = parts.iter().map(|p| format!("{stem} - {}", p.part)).collect();
+        let (doc, _) = pdfcraft_create::email_with_saved_names(name, bytes, self.paper(), 10.0, &saved)?;
+        let mut files = vec![ExportFile { part: format!("{:0width$} Email.pdf", 0), bytes: self.write_new(&doc)?, kind: ExportKind::Email }];
+        files.extend(parts);
         Ok(EmailExport { stem, files })
     }
 
@@ -213,24 +223,27 @@ impl Session {
             let shown = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
             let export = match std::fs::metadata(path) {
                 Ok(meta) if meta.len() > MAX_EMAIL_BYTES => Err(format!("larger than {} MB", MAX_EMAIL_BYTES >> 20)),
-                Ok(_) => {
-                    std::fs::read(path).map_err(|e| e.to_string()).and_then(|bytes| self.export_email(&shown, &bytes).map_err(|e| e.to_string()))
-                }
+                Ok(_) => std::fs::read(path).map_err(|e| e.to_string()).and_then(|bytes| {
+                    // One stem for all of this message's files, numbered as a whole when another
+                    // message (or an earlier export) used it, so its files stay together.
+                    let taken = &taken;
+                    let mut choose = |stem: &str| {
+                        (1..10_000)
+                            .map(|n| if n == 1 { stem.to_string() } else { format!("{stem} ({n})") })
+                            .find(|s| {
+                                let prefix = format!("{s} - ").to_lowercase();
+                                !taken.iter().any(|t| t.starts_with(&prefix))
+                            })
+                            .unwrap_or_else(|| stem.to_string())
+                    };
+                    self.export_email_as(&shown, &bytes, &mut choose).map_err(|e| e.to_string())
+                }),
                 Err(e) => Err(e.to_string()),
             };
             match export {
                 Err(why) => report.failed.push((shown, why)),
                 Ok(EmailExport { stem, files }) => {
                     report.emails += 1;
-                    // One stem for all of this message's files, numbered as a whole when another
-                    // message (or an earlier export) used it, so its files stay together.
-                    let stem = (1..10_000)
-                        .map(|n| if n == 1 { stem.clone() } else { format!("{stem} ({n})") })
-                        .find(|s| {
-                            let prefix = format!("{s} - ").to_lowercase();
-                            !taken.iter().any(|t| t.starts_with(&prefix))
-                        })
-                        .unwrap_or(stem);
                     for file in files {
                         let name = format!("{stem} - {}", file.part);
                         let Some(target) = unused_path(out_dir, &name) else {
