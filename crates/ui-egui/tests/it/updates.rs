@@ -48,6 +48,7 @@ fn settle(h: &mut Harness<'static, PdfCraftApp>) {
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn a_newer_release_is_offered_for_download() {
     let mut h = harness(Ok(Some("v99.0.0")));
     h.state_mut().execute("help.check_updates");
@@ -60,6 +61,7 @@ fn a_newer_release_is_offered_for_download() {
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn an_up_to_date_or_failed_check_says_so() {
     let mut h = harness(Ok(None));
     h.state_mut().execute("help.check_updates");
@@ -75,6 +77,7 @@ fn an_up_to_date_or_failed_check_says_so() {
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn nothing_is_asked_until_the_user_checks() {
     // The check at start is opt-in (the desktop app turns it on): the source is only called from the command.
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -130,6 +133,7 @@ fn run_until_asked(h: &mut Harness<'static, PdfCraftApp>, calls: &std::sync::ato
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn the_preference_keeps_the_check_at_start_from_reaching_the_network() {
     use std::sync::atomic::Ordering::SeqCst;
     assert!(PdfCraftApp::new().update_check_at_start, "on by default");
@@ -167,6 +171,7 @@ fn turning_the_check_at_start_on_waits_for_the_next_start() {
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn preferences_turn_the_check_at_start_off() {
     let (mut h, _calls) = started_with(r#"{"update_check_at_start": true}"#);
     // The check at start answers on its own thread; its prompt would take the click below.
@@ -190,6 +195,7 @@ fn settings_from_the_old_opt_in_leave_the_check_at_start_on() {
 }
 
 #[test]
+#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn the_check_at_start_offers_the_prompt_and_later_dismisses_it() {
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
@@ -212,4 +218,29 @@ fn later_on_the_startup_prompt(h: &mut Harness<'static, PdfCraftApp>) {
     }
     h.get_by_label("LATER").click();
     h.run_steps(3);
+}
+
+/// RCH build: even with a newer release on offer and the check at start asked for, nothing is
+/// checked and nothing is offered (an upstream PdfCraft update would replace RCH PDF), and
+/// Help ▸ Check for updates says where updates come from instead.
+#[test]
+fn rch_build_never_offers_upstream_updates() {
+    let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.set_update_source(source(Ok(Some("v99.0.0"))));
+        app.set_startup_update_check(true);
+        app
+    });
+    for _ in 0..40 {
+        h.run_steps(2);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(h.query_by_label_contains("is available").is_none(), "no update prompt at start");
+    assert!(h.state_mut().execute("help.check_updates"));
+    assert_eq!(h.state().toast.clone().map(|t| t.0).as_deref(), Some("RCH PDF updates come from Blinco Technologies, not from inside the app."));
+    for _ in 0..20 {
+        h.run_steps(2);
+    }
+    assert!(h.query_by_label_contains("is available").is_none(), "no update prompt from Help either");
 }

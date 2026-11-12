@@ -113,7 +113,10 @@ impl PdfCraftApp {
     /// Whether the app asks for a newer release on its first frame (off until the desktop app turns it on).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_startup_update_check(&mut self, on: bool) {
-        self.updates.startup_check = on;
+        // RCH build: never. The updater reads upstream PdfCraft's releases and would replace RCH
+        // PDF (same bundle id) with generic PdfCraft; RCH PDF updates come from Blinco Technologies.
+        let _ = on;
+        self.updates.startup_check = false;
     }
 
     /// Replaces the network with `source` (tests).
@@ -124,7 +127,9 @@ impl PdfCraftApp {
 
     /// Help ▸ Check for updates: ask for the latest release and show the outcome.
     pub fn check_for_updates(&mut self) {
-        #[cfg(not(target_arch = "wasm32"))]
+        // RCH build: no update check (see set_startup_update_check).
+        self.notify_tr("RCH PDF updates come from Blinco Technologies, not from inside the app.");
+        #[cfg(any())]
         {
             self.updates.open = true;
             self.updates.check_requested = true;
