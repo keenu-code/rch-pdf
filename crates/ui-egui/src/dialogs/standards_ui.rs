@@ -36,7 +36,7 @@ impl PdfCraftApp {
             let left = self.pdfa.issues.as_ref().map_or(0, Vec::len);
             self.notify(if left == 0 {
                 crate::i18n::fmt(
-                    tl!("PdfCraft's checks now find no problems for {level}. This is not a validator result. Save to keep the changes."),
+                    tl!("RCH PDF's checks now find no problems for {level}. This is not a validator result. Save to keep the changes."),
                     &[("level", level.label())],
                 )
             } else if left == 1 {
@@ -95,7 +95,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool
                 }
                 Some(v) if v.is_empty() => {
                     ui.label(crate::i18n::fmt(
-                        tl!("PdfCraft's checks found no problems for {level}. This is not a validator result."),
+                        tl!("RCH PDF's checks found no problems for {level}. This is not a validator result."),
                         &[("level", app.pdfa.level.label())],
                     ));
                 }

@@ -188,7 +188,7 @@ pub(super) fn notices(
     } else if info.xfa == Some(pdfcraft_render::Xfa::Dynamic) {
         Some((
             "triangle-alert",
-            tl!("This is a dynamic XFA form, which PdfCraft can't display yet. What you see is the file's placeholder page.").to_string(),
+            tl!("This is a dynamic XFA form, which RCH PDF can't display yet. What you see is the file's placeholder page.").to_string(),
             false,
         ))
     } else if info.xfa == Some(pdfcraft_render::Xfa::Static) {
@@ -277,7 +277,7 @@ fn cut_pages_bar(view: &mut DocView, ui: &mut egui::Ui, t: &Tokens) {
     let n = view.cut_pages.len();
     let text = if n == 1 {
         crate::i18n::fmt(
-            tl!("Page {page} holds more content than PdfCraft can read: part of it isn't drawn, and only part of its text can be found or copied."),
+            tl!("Page {page} holds more content than RCH PDF can read: part of it isn't drawn, and only part of its text can be found or copied."),
             &[("page", &page)],
         )
     } else {

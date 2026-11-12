@@ -1,8 +1,8 @@
 # RCH PDF app icon
 
-<img src="pdfcraft-small.svg" alt="RCH PDF app icon: RPF over an orange bar on cream" width="128">
+<img src="pdfcraft-small.svg" alt="RCH PDF app icon: RPDF over an orange bar on cream" width="128">
 
-**Mark:** the letters RPF (RCH PDF) in Poppins SemiBold over a short orange bar, with "RCH PDF" spaced out
+**Mark:** the letters RPDF (RCH PDF) in Poppins SemiBold over a short orange bar, with "RCH PDF" spaced out
 beneath in Poppins Medium, after the RCH Lawyers logo (Poppins with a solid orange bar).
 
 **Palette:**

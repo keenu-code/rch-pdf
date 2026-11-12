@@ -47,9 +47,9 @@
     <string>nb</string>
   </array>
   <key>CFBundleDisplayName</key>
-  <string>PdfCraft</string>
+  <string>RCH PDF</string>
   <key>CFBundleName</key>
-  <string>PdfCraft</string>
+  <string>RCH PDF</string>
   <key>CFBundleExecutable</key>
   <string>PdfCraft</string>
   <key>CFBundleIdentifier</key>

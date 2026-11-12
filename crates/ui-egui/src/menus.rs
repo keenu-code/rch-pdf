@@ -23,7 +23,7 @@ pub(super) mod tab_context;
 pub(crate) use tab_context::reveal;
 
 /// The app's name in the menus the layouts write (About, Hide, Quit).
-pub(crate) const APP_NAME: &str = "PdfCraft";
+pub(crate) const APP_NAME: &str = "RCH PDF";
 
 /// The top bar's width after the menus: the mode tabs, the search box and the buttons.
 const ROW_AFTER_MENUS: f32 = 720.0;

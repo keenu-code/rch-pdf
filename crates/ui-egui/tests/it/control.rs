@@ -1122,7 +1122,7 @@ fn preferences_menu_and_shortcut_allow_switching_interface_languages() {
     // the label.
     let (menu, preferences) = if cfg!(target_os = "macos") {
         let ja = pdfcraft_ui_egui::i18n::Lang::from_code("ja").unwrap();
-        ("PdfCraft", pdfcraft_ui_egui::i18n::tr(ja, "Settings…").trim_end_matches('…'))
+        ("RCH PDF", pdfcraft_ui_egui::i18n::tr(ja, "Settings…").trim_end_matches('…'))
     } else {
         ("編集", "環境設定")
     };

@@ -392,7 +392,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         // notice users know; Tesseract's reasons are catalog keys of their own.
         let text = match d.engine {
             pdfcraft_engine::ocr::EngineChoice::Tesseract => crate::i18n::t(&why).to_string(),
-            _ => tl!("Text recognition isn't installed: its model files are missing. Reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them.")
+            _ => tl!("Text recognition isn't installed: its model files are missing. Reinstall RCH PDF, or set PDFCRAFT_MODELS to the folder that holds them.")
                 .to_string(),
         };
         ui.label(egui::RichText::new(text).small().color(t.text_muted));
