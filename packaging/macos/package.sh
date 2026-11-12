@@ -152,6 +152,13 @@ echo "==> building $DMG"
 STAGE="$WORK/dmg"
 mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/PdfCraft.app"
+# RCH build: another signed, notarised app shipped beside PdfCraft (LibreOffice, for Office
+# attachments), copied as it is. Its own signature must hold before and after it goes in.
+if [[ -n "${PDFCRAFT_DMG_EXTRA_APP:-}" ]]; then
+  codesign --verify --strict --deep --verbose=2 "$PDFCRAFT_DMG_EXTRA_APP"
+  spctl --assess --type execute -vv "$PDFCRAFT_DMG_EXTRA_APP"
+  ditto "$PDFCRAFT_DMG_EXTRA_APP" "$STAGE/$(basename "$PDFCRAFT_DMG_EXTRA_APP")"
+fi
 ln -s /Applications "$STAGE/Applications"
 # Finder window layout: background, icon size and positions (packaging/macos/dmg/README.md).
 mkdir -p "$STAGE/.background"
@@ -186,7 +193,8 @@ MOUNT="$WORK/dmg-check"
 rm -rf "$MOUNT"
 mkdir -p "$MOUNT"
 hdiutil_retry attach attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
-if ! codesign --verify --strict --deep --verbose=2 "$MOUNT/PdfCraft.app"; then
+EXTRA_IN_DMG="${PDFCRAFT_DMG_EXTRA_APP:+$MOUNT/$(basename "${PDFCRAFT_DMG_EXTRA_APP:-}")}"
+if ! codesign --verify --strict --deep --verbose=2 "$MOUNT/PdfCraft.app" || { [[ -n "$EXTRA_IN_DMG" ]] && ! codesign --verify --strict --deep --verbose=2 "$EXTRA_IN_DMG"; }; then
   hdiutil_retry detach detach "$MOUNT" >/dev/null || true
   exit 1
 fi
