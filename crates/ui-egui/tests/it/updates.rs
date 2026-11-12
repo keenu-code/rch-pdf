@@ -48,12 +48,11 @@ fn settle(h: &mut Harness<'static, PdfCraftApp>) {
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn a_newer_release_is_offered_for_download() {
     let mut h = harness(Ok(Some("v99.0.0")));
     h.state_mut().execute("help.check_updates");
     settle(&mut h);
-    h.get_by_label_contains("PdfCraft 99.0.0 is available");
+    h.get_by_label_contains("RCH PDF 99.0.0 is available");
     h.get_by_label("DOWNLOAD");
     h.get_by_label("LATER").click();
     h.run_steps(3);
@@ -61,7 +60,6 @@ fn a_newer_release_is_offered_for_download() {
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn an_up_to_date_or_failed_check_says_so() {
     let mut h = harness(Ok(None));
     h.state_mut().execute("help.check_updates");
@@ -77,7 +75,6 @@ fn an_up_to_date_or_failed_check_says_so() {
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn nothing_is_asked_until_the_user_checks() {
     // The check at start is opt-in (the desktop app turns it on): the source is only called from the command.
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -100,7 +97,7 @@ fn nothing_is_asked_until_the_user_checks() {
     h.state_mut().execute("help.check_updates");
     settle(&mut h);
     assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
-    h.get_by_label_contains("PdfCraft 99.0.0 is available");
+    h.get_by_label_contains("RCH PDF 99.0.0 is available");
 }
 
 /// The desktop app's start, with `settings` restored, and the count of what the source was asked.
@@ -133,7 +130,6 @@ fn run_until_asked(h: &mut Harness<'static, PdfCraftApp>, calls: &std::sync::ato
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn the_preference_keeps_the_check_at_start_from_reaching_the_network() {
     use std::sync::atomic::Ordering::SeqCst;
     assert!(PdfCraftApp::new().update_check_at_start, "on by default");
@@ -156,7 +152,7 @@ fn the_preference_keeps_the_check_at_start_from_reaching_the_network() {
     h.state_mut().execute("help.check_updates");
     settle(&mut h);
     assert_eq!(calls.load(SeqCst), 1);
-    h.get_by_label_contains("PdfCraft 99.0.0 is available");
+    h.get_by_label_contains("RCH PDF 99.0.0 is available");
 }
 
 /// The setting is about starting: turning it on asks nothing until the next start.
@@ -171,7 +167,6 @@ fn turning_the_check_at_start_on_waits_for_the_next_start() {
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn preferences_turn_the_check_at_start_off() {
     let (mut h, _calls) = started_with(r#"{"update_check_at_start": true}"#);
     // The check at start answers on its own thread; its prompt would take the click below.
@@ -195,7 +190,6 @@ fn settings_from_the_old_opt_in_leave_the_check_at_start_on() {
 }
 
 #[test]
-#[ignore = "RCH build: the update check is off (RCH PDF would be replaced by upstream PdfCraft); see rch_build_never_offers_upstream_updates"]
 fn the_check_at_start_offers_the_prompt_and_later_dismisses_it() {
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
@@ -220,27 +214,24 @@ fn later_on_the_startup_prompt(h: &mut Harness<'static, PdfCraftApp>) {
     h.run_steps(3);
 }
 
-/// RCH build: even with a newer release on offer and the check at start asked for, nothing is
-/// checked and nothing is offered (an upstream PdfCraft update would replace RCH PDF), and
-/// Help ▸ Check for updates says where updates come from instead.
+/// RCH build: the updater is RCH PDF's own. It reads only keenu-code/rch-pdf, under its own id
+/// (bundle id ai.storyteller.rchpdf, assets rchpdf-<version>-macos-universal.dmg), compares RCH
+/// PDF's own version, and offers the next release but not the one already installed.
 #[test]
-fn rch_build_never_offers_upstream_updates() {
-    let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| {
-        let mut app = PdfCraftApp::new();
-        app.set_option("language", "en").unwrap();
-        app.set_update_source(source(Ok(Some("v99.0.0"))));
-        app.set_startup_update_check(true);
-        app
-    });
-    for _ in 0..40 {
-        h.run_steps(2);
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    assert!(h.query_by_label_contains("is available").is_none(), "no update prompt at start");
-    assert!(h.state_mut().execute("help.check_updates"));
-    assert_eq!(h.state().toast.clone().map(|t| t.0).as_deref(), Some("RCH PDF updates come from Blinco Technologies, not from inside the app."));
-    for _ in 0..20 {
-        h.run_steps(2);
-    }
-    assert!(h.query_by_label_contains("is available").is_none(), "no update prompt from Help either");
+fn the_updater_follows_rch_pdf_releases() {
+    let app = pdfcraft_ui_egui::UPDATE_APP;
+    assert_eq!((app.id, app.name, app.repo, app.developer), ("rchpdf", "RCH PDF", "keenu-code/rch-pdf", "Blinco Technologies"));
+    assert_eq!(app.bundle_id(), "ai.storyteller.rchpdf");
+    let ours = pdfcraft_ui_egui::RCH_VERSION;
+    let v = craft_update::version::parse(ours).expect("RCH_VERSION is a version");
+    let next = format!("v{}.{}.{}", v.major, v.minor, v.patch + 1);
+    let mut h = harness(Ok(Some(Box::leak(next.clone().into_boxed_str()))));
+    h.state_mut().execute("help.check_updates");
+    settle(&mut h);
+    h.get_by_label_contains(&format!("RCH PDF {} is available", &next[1..]));
+    // The real GitHub source offers a release only when it is newer than RCH_VERSION (this
+    // harness's fake source skips that comparison), so check the comparison it makes.
+    let next_v = craft_update::version::parse(&next).unwrap();
+    assert!(craft_update::version::is_newer(&next_v, &v));
+    assert!(!craft_update::version::is_newer(&v, &v), "the installed version is not offered again");
 }

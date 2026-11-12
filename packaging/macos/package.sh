@@ -37,11 +37,14 @@ esac
 # Keep in sync with LSMinimumSystemVersion in Info.plist.in.
 export MACOSX_DEPLOYMENT_TARGET=11.0
 IDENTITY="${MACOS_SIGN_IDENTITY:--}"
-SHORT_VERSION="${VERSION%%-*}"
+# RCH build: RCH PDF's own version (packaging/macos/RCH_VERSION) is the bundle's version, the one the
+# updater compares with keenu-code/rch-pdf's releases; PdfCraftVersion keeps the PdfCraft version.
+RCH_VERSION="$(tr -d '[:space:]' < "$HERE/RCH_VERSION")"
+SHORT_VERSION="$RCH_VERSION"
 WORK="$CARGO_TARGET_DIR/macos-package"
 # RCH build: the app is "RCH PDF" in Finder and the Dock; its executable keeps its own name.
 APP="$WORK/RCH PDF.app"
-DMG="$DIST/pdfcraft-$VERSION-macos-$ARCH.dmg"
+DMG="$DIST/rchpdf-$RCH_VERSION-macos-$ARCH.dmg"
 CLI_ZIP="$DIST/pdfcraft-cli-$VERSION-macos-$ARCH.zip"
 
 NOTARIZE=0

@@ -171,3 +171,7 @@ eframe = { git = "https://github.com/storytold/egui.git", rev = "725a39fca940f77
 egui_demo_lib = { git = "https://github.com/storytold/egui.git", rev = "725a39fca940f77149ffbb9c58eef405a16997bc" }
 egui_inspection = { git = "https://github.com/storytold/egui.git", rev = "725a39fca940f77149ffbb9c58eef405a16997bc" }
 winit = { git = "https://github.com/storytold/winit.git", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }
+
+# RCH build: the updater with RCH PDF's signing team (vendor/craft-update/Cargo.toml says what changed).
+[patch."https://github.com/storytold/craft-libs"]
+craft-update = { path = "vendor/craft-update" }

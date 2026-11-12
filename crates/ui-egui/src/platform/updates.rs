@@ -55,7 +55,7 @@ impl Default for Updates {
     fn default() -> Self {
         Self {
             #[cfg(not(target_arch = "wasm32"))]
-            updater: Updater::new(&crate::UPDATE_APP, env!("CARGO_PKG_VERSION")),
+            updater: Updater::new(&crate::UPDATE_APP, crate::RCH_VERSION),
             open: false,
             #[cfg(not(target_arch = "wasm32"))]
             startup_check: false,
@@ -113,23 +113,18 @@ impl PdfCraftApp {
     /// Whether the app asks for a newer release on its first frame (off until the desktop app turns it on).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_startup_update_check(&mut self, on: bool) {
-        // RCH build: never. The updater reads upstream PdfCraft's releases and would replace RCH
-        // PDF (same bundle id) with generic PdfCraft; RCH PDF updates come from Blinco Technologies.
-        let _ = on;
-        self.updates.startup_check = false;
+        self.updates.startup_check = on;
     }
 
     /// Replaces the network with `source` (tests).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_update_source(&mut self, source: UpdateSource) {
-        self.updates.updater = Updater::new(&crate::UPDATE_APP, env!("CARGO_PKG_VERSION")).with_source(source);
+        self.updates.updater = Updater::new(&crate::UPDATE_APP, crate::RCH_VERSION).with_source(source);
     }
 
     /// Help ▸ Check for updates: ask for the latest release and show the outcome.
     pub fn check_for_updates(&mut self) {
-        // RCH build: no update check (see set_startup_update_check).
-        self.notify_tr("RCH PDF updates come from Blinco Technologies, not from inside the app.");
-        #[cfg(any())]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             self.updates.open = true;
             self.updates.check_requested = true;

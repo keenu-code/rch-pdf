@@ -14,9 +14,17 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
     icon_png: Some(include_bytes!("../../../assets/app-icon/hicolor/128x128/apps/ai.storyteller.pdfcraft.png")),
-    accent: Some([0xb7, 0x02, 0x28]),
-    ..craft_update::suite::PDFCRAFT
+    // RCH orange.
+    accent: Some([0xff, 0x6c, 0x2f]),
+    developer: "Blinco Technologies",
+    // RCH build: its own app to the updater. Bundle id ai.storyteller.rchpdf, release assets
+    // rchpdf-<version>-macos-universal.dmg, read only from keenu-code/rch-pdf's releases.
+    ..craft_update::app::App::new("rchpdf", "RCH PDF", "Custom RCH PDF workbench", "keenu-code/rch-pdf")
 };
+
+/// RCH PDF's own version (packaging/macos/RCH_VERSION): what the updater compares with the newest
+/// release on keenu-code/rch-pdf. Separate from PdfCraft's, which it is built on.
+pub const RCH_VERSION: &str = include_str!("../../../packaging/macos/RCH_VERSION").trim_ascii();
 
 use crate::control::Host as _;
 
